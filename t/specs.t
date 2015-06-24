@@ -8,8 +8,9 @@ use Template::Mustache;
 use YAML::Syck;
 
 my $PARTS_DIR = "$Bin/partials/";
+my $EXT       = '.mustache';
 $Template::Mustache::template_path      = $PARTS_DIR;
-$Template::Mustache::template_extension = '';
+$Template::Mustache::template_extension = $EXT;
 
 sub startup {
 	# remove partials directory
@@ -35,7 +36,7 @@ sub setup {
 
 	# create and fill partials files
 	foreach my $k ( keys %{ $t->{partials} } ) {
-		my $parts_filename = $PARTS_DIR . $k;
+		my $parts_filename = $PARTS_DIR . $k . ".$EXT";
 
 		open my $fh, '>', $parts_filename
 			or die "Can't create [$parts_filename]: [$!]";
@@ -44,7 +45,18 @@ sub setup {
 	}
 }
 
-sub teardown { }
+sub teardown {
+	my $t = shift;
+
+	# remove partials files
+	foreach my $k ( keys %{ $t->{partials} } ) {
+		my $parts_filename = $PARTS_DIR . $k . ".$EXT";
+
+		unless ( unlink $parts_filename ) {
+			die "Can't remove [$parts_filename]: [$!]";
+		}
+	}
+}
 
 sub shutdown {
 	# remove partials directory
@@ -77,8 +89,9 @@ while ( my $filename = <$Bin/../ext/spec/specs/*.yml> ) {
 		my $out = '';
 
 		eval {
-			# TODO: partials from file
-			$out = Template::Mustache->render( $t->{template}, $t->{data}, $t->{partials} );
+			# Only one partials key can be used. Limitation?
+			($Template::Mustache::template_file) = keys %{ $t->{partials} };
+			$out = Template::Mustache->render( $t->{template}, $t->{data} );
 		};
 		if ( $@ ) {
 			fail( $t->{signature} . "ERROR: $@" );
